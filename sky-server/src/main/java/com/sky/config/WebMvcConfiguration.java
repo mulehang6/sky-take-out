@@ -1,66 +1,63 @@
 package com.sky.config;
 
 import com.sky.interceptor.JwtTokenAdminInterceptor;
-import io.swagger.annotations.ApiOperation;
+import com.sky.json.JacksonObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
-import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.PathSelectors;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.service.ApiInfo;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer; // 注意这里的变化
+
+import java.util.List;
 
 /**
  * 配置类，注册web层相关组件
  */
 @Configuration
 @Slf4j
-public class WebMvcConfiguration extends WebMvcConfigurationSupport {
+public class WebMvcConfiguration implements WebMvcConfigurer { // 实现 WebMvcConfigurer 接口
 
     @Autowired
     private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
 
+    // Swagger 3 (OpenAPI) 相关的路径
+    private static final String[] SWAGGER_PATHS = {
+            "/doc.html",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs/**", // 注意这里是'/**', 因为可能有 /v3/api-docs/group-name 等
+            "/webjars/**"
+    };
+
     /**
      * 注册自定义拦截器
-     *
      */
-    protected void addInterceptors(InterceptorRegistry registry) {
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
         log.info("开始注册自定义拦截器...");
         registry.addInterceptor(jwtTokenAdminInterceptor)
-                .addPathPatterns("/admin/**")
-                .excludePathPatterns("/admin/employee/login");
+                .addPathPatterns("/admin/**") // 拦截 admin 路径下的所有请求
+                .excludePathPatterns("/admin/employee/login"); // 排除登录接口
     }
 
-    /**
-     * 通过knife4j生成接口文档
+    /*
+      实现 WebMvcConfigurer 后，Spring Boot 的自动配置会处理静态资源。
+      你不再需要手动重写 addResourceHandlers 来映射 Swagger UI 的资源。
+      自动配置会处理好 /swagger-ui.html 和 /webjars/** 等路径。
+      因此，addResourceHandlers 方法可以被安全地删除。
      */
-    @Bean
-    public Docket docket() {
-        log.info("准备生成接口文档");
-        ApiInfo apiInfo = new ApiInfoBuilder()
-                .title("苍穹外卖项目接口文档")
-                .version("2.0")
-                .description("苍穹外卖项目接口文档")
-                .build();
-        return new Docket(DocumentationType.SWAGGER_2)
-                .apiInfo(apiInfo)
-                .select()
-                .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
-                .paths(PathSelectors.any())
-                .build();
-    }
 
-    /**
-     * 设置静态资源映射
-     */
-    protected void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
-        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+    @Override
+    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        //创建自己的消息转换器
+        MappingJackson2HttpMessageConverter messageConverter = new MappingJackson2HttpMessageConverter();
+        //给消息转换器设置对象转换器，底层使用Jackson将Java对象转为json
+        messageConverter.setObjectMapper(new JacksonObjectMapper());
+
+        //将自己的消息转换器添加到MVC框架的转换器集合中
+        converters.add(0,messageConverter); // 0 表示最高优先级
+
     }
 }
