@@ -13,9 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
-/**
- * 分类管理
- */
+//分类管理
 @RestController
 @RequestMapping("/admin/category")
 @Tag(name = "分类相关接口")
@@ -25,11 +23,7 @@ public class CategoryController {
     @Autowired
     private CategoryService categoryService;
 
-    /**
-     * 新增分类
-     * @param categoryDTO
-     * @return
-     */
+    //新增分类
     @PostMapping
     @Operation(summary = "新增分类")
     public Result<String> save(@RequestBody CategoryDTO categoryDTO){
